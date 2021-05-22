@@ -1,0 +1,64 @@
+service: aws-node-cognito-identity-service-provider-poc
+
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: '20201221'
+  profile: hmartins-dev
+  environment:
+    COGNITO_USER_POOL_ID:
+    COGNITO_CLIENT_ID:
+
+functions:
+  cognito:
+    handler: handler.cognito
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - cognito-idp:AdminCreateUser
+          - cognito-idp:AdminDeleteUser
+        Resource: '*'
+    events:
+      - http:
+          path: /
+          method: get
+
+plugins:
+  - serverless-iam-roles-per-function
+
+resources:
+  Resources:
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: poc-atend-cognito
+        AccountRecoverySetting:
+          RecoveryMechanisms:
+            - Name: verified_email
+              Priority: 1
+        UsernameAttributes:
+          - email
+        Schema:
+          - AttributeDataType: String
+            Name: email
+            Required: true
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: poc-atend-cognito-app
+        UserPoolId: !Ref CognitoUserPool
+        SupportedIdentityProviders:
+          - COGNITO
+        AllowedOAuthFlows:
+          - implicit
+        AllowedOAuthScopes:
+          - openid
+          - email
+          - aws.cognito.signin.user.admin
+        AllowedOAuthFlowsUserPoolClient: true
+        CallbackURLs:
+          - http://localhost:3000/auth
+
